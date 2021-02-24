@@ -61,7 +61,15 @@ func ReadJSONResponse(ctx context.Context, conn *websocket.Conn, result interfac
 	if temp.Error != "" {
 		return errors.New(temp.Error)
 	}
+	if len(temp.Result) == 0 {
+		return nil
+	}
 	return json.Unmarshal([]byte(temp.Result), result)
+}
+
+func ExpectResponse(ctx context.Context, conn *websocket.Conn) error {
+	var ifc interface{}
+	return ReadJSONResponse(ctx, conn, &ifc)
 }
 
 type Response struct {
