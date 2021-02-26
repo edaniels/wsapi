@@ -28,7 +28,7 @@ func (c *conn) SendCommand(ctx context.Context, name string) (JSONResponse, erro
 	if err := WriteCommand(ctx, NewCommand(name), c.wsConn); err != nil {
 		return nil, err
 	}
-	return ReadJSONResponse(ctx, c.wsConn)
+	return ReadJSONCommandResponse(ctx, c.wsConn)
 }
 
 func (c *conn) Close() {
