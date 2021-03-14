@@ -12,10 +12,11 @@ import (
 type Server interface {
 	HTTPHandler() http.Handler
 	RegisterCommand(name string, handler CommandHandler)
+	SetLogger(logger golog.Logger)
 }
 
 func NewServer() Server {
-	return &server{commands: map[string]CommandHandler{}}
+	return &server{commands: map[string]CommandHandler{}, logger: golog.Global}
 }
 
 type CommandHandler interface {
@@ -30,13 +31,18 @@ func (chf CommandHandlerFunc) Handle(ctx context.Context, cmd *Command) (interfa
 
 type server struct {
 	commands map[string]CommandHandler
+	logger   golog.Logger
+}
+
+func (s *server) SetLogger(logger golog.Logger) {
+	s.logger = logger
 }
 
 func (s *server) HTTPHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := websocket.Accept(w, r, nil)
 		if err != nil {
-			golog.Global.Error("error making websocket connection", "error", err)
+			s.logger.Error("error making websocket connection", "error", err)
 			return
 		}
 		defer conn.Close(websocket.StatusNormalClosure, "")
@@ -50,20 +56,20 @@ func (s *server) HTTPHandler() http.Handler {
 
 			cmd, err := ReadCommand(r.Context(), conn)
 			if err != nil {
-				golog.Global.Errorw("error reading command", "error", err)
+				s.logger.Errorw("error reading command", "error", err)
 				return
 			}
 			result, err := s.handleCommand(r.Context(), cmd)
 			if err != nil {
 				resp := NewErrorCommandResponse(err)
 				if err := WriteJSONCommandResponse(r.Context(), resp, conn); err != nil {
-					golog.Global.Errorw("error writing", "error", err)
+					s.logger.Errorw("error writing", "error", err)
 					continue
 				}
 				continue
 			}
 			if err := WriteJSONCommandResponse(r.Context(), NewSuccessfulCommandResponse(result), conn); err != nil {
-				golog.Global.Errorw("error writing", "error", err)
+				s.logger.Errorw("error writing", "error", err)
 				continue
 			}
 		}
