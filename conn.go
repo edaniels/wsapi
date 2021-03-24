@@ -2,6 +2,7 @@ package wsapi
 
 import (
 	"context"
+	"sync"
 
 	"nhooyr.io/websocket"
 )
@@ -13,6 +14,7 @@ type Conn interface {
 
 type conn struct {
 	wsConn *websocket.Conn
+	mu     sync.Mutex
 }
 
 func Dial(ctx context.Context, address string) (Conn, error) {
@@ -25,6 +27,8 @@ func Dial(ctx context.Context, address string) (Conn, error) {
 }
 
 func (c *conn) SendCommand(ctx context.Context, name string) (JSONResponse, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if err := WriteCommand(ctx, NewCommand(name), c.wsConn); err != nil {
 		return nil, err
 	}
@@ -32,5 +36,7 @@ func (c *conn) SendCommand(ctx context.Context, name string) (JSONResponse, erro
 }
 
 func (c *conn) Close() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.wsConn.Close(websocket.StatusNormalClosure, "")
 }
